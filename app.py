@@ -184,7 +184,7 @@ def viewer():
         target_runs=s['team1_score'] if s['first_innings_over'] else None,
         runs_needed=(s['team1_score'] - s['runs'] + 1) if s['first_innings_over'] else None,
         team1=s['team1'], team2=s['team2'], batting_team=s['batting_team'],
-        match_state=s,show_result=bool(result), result=result)
+        match_state=s)
     
 
 if __name__ == '__main__':

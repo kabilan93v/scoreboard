@@ -66,6 +66,10 @@
   {% elif match_over %}
   <div class="sub-header">Innings Complete!</div>
   {% endif %}
+  {% if show_result %}
+  <div class="section-title">{{ result }}</div>
+{% endif %}
+
 
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
