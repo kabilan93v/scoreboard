@@ -1,17 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import qrcode
-
-
+import os
 
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
-@app.before_first_request
-def generate_qr():
-    
-    public_url = "https://scoreboard-wxtx.onrender.com/viewer"
 
-    img = qrcode.make(public_url)
-    img.save("static/qr.png")  
+
+def generate_qr():
+    public_url = "https://scoreboard-wxtx.onrender.com/viewer"
+    output_path = os.path.join('static', 'qr.png')
+    if not os.path.exists(output_path):
+        img = qrcode.make(public_url)
+        img.save(output_path)
+
+
+generate_qr()
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
