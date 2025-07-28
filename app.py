@@ -211,6 +211,56 @@ runs_needed=runs_needed
 )
 @app.route("/viewer")
 def viewer():
-    return render_template("viewer.html")
+    score = session.get('score', {
+        'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
+        'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+    })
+    batter1 = score['batter1']
+    batter2 = score['batter2']
+    striker = session.get('striker', 'batter1')
+    current_bowler = session.get('current_bowler', '')
+    bowler = session.get('bowlers', {}).get(current_bowler, {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
 
+    total_balls = session.get('balls', 0)
+    completed_overs = total_balls // 6
+    balls_in_current_over = total_balls % 6
+    over_display = f"{completed_overs}.{balls_in_current_over}"
+    crr = round((session.get('runs', 0) / ((total_balls - session.get('extras', 0)) / 6)) if total_balls - session.get('extras', 0) > 0 else 0, 2)
 
+    match_over = total_balls >= session.get('total_overs', 0) * 6
+    target_runs = None
+    runs_needed = None
+    result = None
+
+    if session.get('first_innings_over'):
+        target_runs = session.get('team1_score', 0)
+        runs_needed = target_runs - session.get('runs', 0) + 1
+        if match_over or session['runs'] > target_runs:
+            match_over = True
+            team1_score = session.get('team1_score', 0)
+            team2_score = session.get('runs', 0)
+            if team2_score > team1_score:
+                result = f"{session['team2']} won by {10 - session['wickets']} wickets"
+            elif team2_score < team1_score:
+                result = f"{session['team1']} won by {team1_score - team2_score} runs"
+            else:
+                result = "Match Tied!"
+
+    return render_template("viewer.html",
+        batter1=batter1,
+        batter2=batter2,
+        striker=striker,
+        bowler=bowler,
+        runs=session.get('runs', 0),
+        wickets=session.get('wickets', 0),
+        over_display=over_display,
+        crr=crr,
+        target_runs=target_runs,
+        runs_needed=runs_needed,
+        match_over=match_over,
+        show_result=bool(result),
+        result=result,
+        extras=session.get('extras', 0),
+        recent_overs=session.get('recent_overs', []),
+        session=session
+    )
