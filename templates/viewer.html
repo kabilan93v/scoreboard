@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Viewer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    {{ session['team1'] }} vs {{ session['team2'] }} -
+    {% if session.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+  </div>
+
+  <div class="sub-header">Live Gully Cricket Scoreboard</div>
+
+  <div class="score-line">
+    <span><strong>{{ session['batting_team'] }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
+    <span><strong>CRR:</strong> {{ crr }}</span>
+  </div>
+
+  {% if target_runs %}
+  <div class="score-line">
+    <strong>Target:</strong> {{ target_runs }} &nbsp;&nbsp;
+    <strong>Runs to Win:</strong> {{ runs_needed }}
+  </div>
+  {% endif %}
+
+  <div class="section-title">Batting</div>
+  <table>
+    <tr><th></th><th>Name</th><th>R(B)</th><th>4s</th><th>6s</th><th>SR</th></tr>
+    <tr>
+      <td><input type="radio" {% if striker == 'batter1' %}checked{% endif %} disabled></td>
+      <td>{{ batter1.name }}</td>
+      <td>{{ batter1.runs }}({{ batter1.balls }})</td>
+      <td>{{ batter1.fours }}</td>
+      <td>{{ batter1.sixes }}</td>
+      <td>{{ '%.2f' % ((batter1.runs / batter1.balls)*100) if batter1.balls > 0 else '0.00' }}</td>
+    </tr>
+    <tr>
+      <td><input type="radio" {% if striker == 'batter2' %}checked{% endif %} disabled></td>
+      <td>{{ batter2.name }}</td>
+      <td>{{ batter2.runs }}({{ batter2.balls }})</td>
+      <td>{{ batter2.fours }}</td>
+      <td>{{ batter2.sixes }}</td>
+      <td>{{ '%.2f' % ((batter2.runs / batter2.balls)*100) if batter2.balls > 0 else '0.00' }}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">Bowler</div>
+  <table>
+    <tr><th>Name</th><th>O</th><th>R</th><th>W</th><th>NB</th><th>WD</th><th>ECO</th></tr>
+    <tr>
+      <td>{{ bowler.name }}</td>
+      <td>{{ bowler.balls // 6 }}.{{ bowler.balls % 6 }}</td>
+      <td>{{ bowler.runs }}</td>
+      <td>{{ bowler.wickets }}</td>
+      <td>{{ bowler.nb }}</td>
+      <td>{{ bowler.wd }}</td>
+      <td>{{ '%.2f' % ((bowler.runs / (bowler.balls / 6)) if bowler.balls > 0 else 0) }}</td>
+    </tr>
+  </table>
+
+  {% if match_over and show_result %}
+  <div class="sub-header">Match Over!</div>
+  <div class="section-title">{{ result }}</div>
+  {% elif match_over %}
+  <div class="sub-header">Innings Complete!</div>
+  {% endif %}
+
+  <div class="extras">Extras: {{ extras }}</div>
+  <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
+</div>
+</body>
+</html>

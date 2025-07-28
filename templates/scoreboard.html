@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scoreboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    {{ session['team1'] }} vs {{ session['team2'] }} -
+    {% if session.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+    {% if show_end_innings %}
+    <form method="POST" style="display:inline;">
+      <button name="end_innings">End Innings</button>
+    </form>
+    {% else %}
+    <button disabled>End Innings</button>
+    {% endif %}
+  </div>
+
+  <div class="sub-header">Welcome to Gully Cricket Score Board</div>
+
+  <div class="score-line">
+    <span><strong>{{ session['batting_team'] }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
+    <span><strong>CRR:</strong> {{ crr }}</span>
+  </div>
+  {% if target_runs %}
+  <div class="score-line">
+    <strong>Target:</strong> {{ target_runs }} &nbsp;&nbsp;
+    <strong>Runs to Win:</strong> {{ runs_needed }}
+  </div>
+{% endif %}
+
+
+  {% if show_batter_name_form %}
+  <form method="POST">
+    <div style="text-align:center; margin: 20px 0;">
+      <input type="text" name="batter1_name" placeholder="Enter Batter 1 Name" required>
+      <input type="text" name="batter2_name" placeholder="Enter Batter 2 Name" required>
+      <button type="submit">Set Batters</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="section-title">Batting</div>
+  <table>
+    <tr><th></th><th>Name</th><th>R(B)</th><th>4s</th><th>6s</th><th>SR</th></tr>
+    <tr>
+      <td><input type="radio" {% if striker == 'batter1' %}checked{% endif %}></td>
+      <td>{{ batter1.name }}</td>
+      <td>{{ batter1.runs }}({{ batter1.balls }})</td>
+      <td>{{ batter1.fours }}</td>
+      <td>{{ batter1.sixes }}</td>
+      <td>{{ '%.2f' % ((batter1.runs / batter1.balls)*100) if batter1.balls > 0 else '0.00' }}</td>
+    </tr>
+    <tr>
+      <td><input type="radio" {% if striker == 'batter2' %}checked{% endif %}></td>
+      <td>{{ batter2.name }}</td>
+      <td>{{ batter2.runs }}({{ batter2.balls }})</td>
+      <td>{{ batter2.fours }}</td>
+      <td>{{ batter2.sixes }}</td>
+      <td>{{ '%.2f' % ((batter2.runs / batter2.balls)*100) if batter2.balls > 0 else '0.00' }}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">Bowler</div>
+  <table>
+    <tr><th>Name</th><th>O</th><th>R</th><th>W</th><th>NB</th><th>WD</th><th>ECO</th></tr>
+    <tr>
+      <td>{{ bowler.name }}</td>
+      <td>{{ bowler.balls // 6 }}.{{ bowler.balls % 6 }}</td>
+      <td>{{ bowler.runs }}</td>
+      <td>{{ bowler.wickets }}</td>
+      <td>{{ bowler.nb }}</td>
+      <td>{{ bowler.wd }}</td>
+      <td>{{ '%.2f' % ((bowler.runs / (bowler.balls / 6)) if bowler.balls > 0 else 0) }}</td>
+    </tr>
+  </table>
+
+  {% if awaiting_new_batter %}
+  <form method="POST" style="margin-top: 15px;">
+    <input type="text" name="new_batter" placeholder="Enter new batsman name" required>
+    <button type="submit">Add</button>
+  </form>
+  {% endif %}
+
+  {% if show_bowler_name_form %}
+  <form method="POST" style="margin-top: 15px;">
+    <input type="text" name="new_bowler" placeholder="Enter new bowler name" required>
+    <button type="submit">Set Bowler</button>
+  </form>
+  {% endif %}
+
+  {% if show_run_buttons %}
+  <form method="POST">
+    <div class="buttons">
+      <button name="event" value="0">0</button>
+      <button name="event" value="1">1</button>
+      <button name="event" value="2">2</button>
+      <button name="event" value="3">3</button>
+      <button name="event" value="4">4</button>
+      <button name="event" value="6">6</button>
+      <button name="event" value="WD">wd</button>
+      <button name="event" value="NB">nb</button>
+      <button name="event" value="W">W</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if match_over and show_result %}
+  <div class="sub-header">Match Over!</div>
+  <div class="section-title">{{ result }}</div>
+  {% elif match_over %}
+  <div class="sub-header">Innings Complete!</div>
+  {% endif %}
+
+  <div class="extras">Extras: {{ extras }}</div>
+  <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
+</div>
+
+
+</body>
+</html>
