@@ -3,13 +3,12 @@
 <head>
   <title>Live Viewer</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-   <meta http-equiv="refresh" content="5">
+  <meta http-equiv="refresh" content="5">
 </head>
 <body>
 <div class="container">
   <div class="header">
-    {{ team1 }} vs {{ team2 }} -
-    {% if match_state.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+    {{ team1 }} vs {{ team2 }} - {% if match_state.first_innings_over %}2nd{% else %}1st{% endif %} Inning
   </div>
 
   <div class="sub-header">Live Gully Cricket Scoreboard</div>
@@ -61,7 +60,6 @@
     </tr>
   </table>
 
-
   {% if match_over and show_result %}
   <div class="sub-header">Match Over!</div>
   <div class="section-title">{{ result }}</div>
@@ -71,7 +69,6 @@
 
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
-
 </div>
 </body>
 </html>

@@ -7,8 +7,8 @@
 <body>
 <div class="container">
   <div class="header">
-    {{ session['team1'] }} vs {{ session['team2'] }} -
-    {% if match_state.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+    {{ team1 }} vs {{ team2 }} - {% if match_state.first_innings_over %}2nd{% else %}1st{% endif %} Inning
+
     {% if show_end_innings %}
     <form method="POST" style="display:inline;">
       <button name="end_innings">End Innings</button>
@@ -24,13 +24,13 @@
     <span><strong>{{ batting_team }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
     <span><strong>CRR:</strong> {{ crr }}</span>
   </div>
+
   {% if target_runs %}
   <div class="score-line">
     <strong>Target:</strong> {{ target_runs }} &nbsp;&nbsp;
     <strong>Runs to Win:</strong> {{ runs_needed }}
   </div>
-{% endif %}
-
+  {% endif %}
 
   {% if show_batter_name_form %}
   <form method="POST">
@@ -116,13 +116,12 @@
 
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
+
+  <div style="text-align:center; margin-top: 30px;">
+    <h3>Scan to View Live Scoreboard</h3>
+    <img src="{{ url_for('static', filename='qr.png') }}" alt="QR Code" width="200">
+  </div>
+
 </div>
-<div>
-  <h3>Scan to View Live Scoreboard</h3>
-  <img src="{{ url_for('static', filename='qr.png') }}" alt="QR Code to View Scoreboard" width="200">
-</div>
-
-
-
 </body>
 </html>

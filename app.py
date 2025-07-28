@@ -5,7 +5,6 @@ import os
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
 
-# Global match state
 match_state = {
     'team1': '', 'team2': '', 'total_overs': 0,
     'batting_team': '', 'runs': 0, 'wickets': 0, 'balls': 0, 'extras': 0,
@@ -19,13 +18,11 @@ match_state = {
     'first_innings_over': False, 'team1_score': 0
 }
 
-# Generate QR code
 def generate_qr():
     public_url = "https://scoreboard-wxtx.onrender.com/viewer"
-    qr_path = os.path.join('static', 'qr.png')
-    if not os.path.exists(qr_path):
-        img = qrcode.make(public_url)
-        img.save(qr_path)
+    output_path = os.path.join('static', 'qr.png')
+    img = qrcode.make(public_url)
+    img.save(output_path)
 
 generate_qr()
 
@@ -67,7 +64,6 @@ def scoreboard():
     if state['first_innings_over'] and state['runs'] > target_runs:
         match_over = True
 
-    # POST request handling
     if request.method == 'POST':
         form = request.form
         if 'batter1_name' in form:
@@ -139,7 +135,6 @@ def scoreboard():
 
         return redirect(url_for('scoreboard'))
 
-    # Show result if match is over
     result = ''
     if state['first_innings_over'] and match_over:
         team2_score = state['runs']
@@ -151,17 +146,14 @@ def scoreboard():
         else:
             result = "Match Tied!"
 
-    return render_template('scoreboard.html',
+    return render_template('scoreboard.html', **state,
         batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
-        runs=state['runs'], wickets=state['wickets'], balls=state['balls'],
-        extras=state['extras'], over_display=over_display, crr=crr,
-        recent_overs=state['recent_overs'][-6:], match_over=match_over,
-        show_result=bool(result), result=result,
+        over_display=over_display, crr=crr, match_over=match_over,
         target_runs=target_runs, runs_needed=runs_needed,
+        show_result=bool(result), result=result,
         show_batter_name_form=not batter1['name'] or not batter2['name'],
         show_bowler_name_form=state['awaiting_new_bowler'],
         show_run_buttons=not state['awaiting_new_bowler'] and not state['awaiting_new_batter'],
-        awaiting_new_batter=state['awaiting_new_batter'],
         show_end_innings=not state['first_innings_over'] and match_over
     )
 
@@ -175,7 +167,10 @@ def viewer():
     over_display = f"{state['balls'] // 6}.{state['balls'] % 6}"
     crr = round((state['runs'] / ((state['balls'] - state['extras']) / 6)) if state['balls'] - state['extras'] > 0 else 0, 2)
     match_over = state['balls'] >= state['total_overs'] * 6
-    result = ""
+    target_runs = state['team1_score'] if state['first_innings_over'] else None
+    runs_needed = target_runs - state['runs'] + 1 if target_runs else None
+
+    result = ''
     if state['first_innings_over'] and match_over:
         if state['runs'] > state['team1_score']:
             result = f"{state['team2']} won by {10 - state['wickets']} wickets"
@@ -183,14 +178,13 @@ def viewer():
             result = f"{state['team1']} won by {state['team1_score'] - state['runs']} runs"
         else:
             result = "Match Tied!"
-    return render_template("viewer.html",
+
+    return render_template("viewer.html", **state,
         batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
-        runs=state['runs'], wickets=state['wickets'], balls=state['balls'],
-        extras=state['extras'], over_display=over_display, crr=crr,
-        recent_overs=state['recent_overs'][-6:], match_over=match_over,
+        over_display=over_display, crr=crr, match_over=match_over,
         show_result=bool(result), result=result,
-        target_runs=state['team1_score'] if state['first_innings_over'] else None,
-        runs_needed=(state['team1_score'] - state['runs'] + 1) if state['first_innings_over'] else None,
-        session=state
+        target_runs=target_runs, runs_needed=runs_needed
     )
 
+if __name__ == '__main__':
+    app.run(debug=True)
