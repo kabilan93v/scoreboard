@@ -8,7 +8,6 @@
 <div class="container">
   <div class="header">
     {{ team1 }} vs {{ team2 }} - {% if match_state.first_innings_over %}2nd{% else %}1st{% endif %} Inning
-
     {% if show_end_innings %}
     <form method="POST" style="display:inline;">
       <button name="end_innings">End Innings</button>
@@ -116,12 +115,11 @@
 
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
+</div>
 
-  <div style="text-align:center; margin-top: 30px;">
-    <h3>Scan to View Live Scoreboard</h3>
-    <img src="{{ url_for('static', filename='qr.png') }}" alt="QR Code" width="200">
-  </div>
-
+<div style="text-align:center; margin-top:20px;">
+  <h3>Scan to View Live Scoreboard</h3>
+  <img src="{{ url_for('static', filename='qr.png') }}" alt="QR Code to View Scoreboard" width="200">
 </div>
 </body>
 </html>

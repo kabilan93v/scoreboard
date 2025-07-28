@@ -5,6 +5,7 @@ import os
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
 
+# Global match state
 match_state = {
     'team1': '', 'team2': '', 'total_overs': 0,
     'batting_team': '', 'runs': 0, 'wickets': 0, 'balls': 0, 'extras': 0,
@@ -18,11 +19,13 @@ match_state = {
     'first_innings_over': False, 'team1_score': 0
 }
 
+# Generate QR code once
 def generate_qr():
-    public_url = "https://scoreboard-wxtx.onrender.com/viewer"
-    output_path = os.path.join('static', 'qr.png')
-    img = qrcode.make(public_url)
-    img.save(output_path)
+    url = "https://scoreboard-wxtx.onrender.com/viewer"
+    output = os.path.join('static', 'qr.png')
+    if not os.path.exists(output):
+        img = qrcode.make(url)
+        img.save(output)
 
 generate_qr()
 
@@ -49,141 +52,139 @@ def index():
 
 @app.route('/scoreboard', methods=['GET', 'POST'])
 def scoreboard():
-    state = match_state
-    batter1 = state['score']['batter1']
-    batter2 = state['score']['batter2']
-    striker = state['striker']
-    bowler = state['bowlers'].get(state['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
-    max_balls = state['total_overs'] * 6
-    over_display = f"{state['balls'] // 6}.{state['balls'] % 6}"
-    crr = round((state['runs'] / ((state['balls'] - state['extras']) / 6)) if state['balls'] - state['extras'] > 0 else 0, 2)
-    match_over = state['balls'] >= max_balls
-    target_runs = state['team1_score'] if state['first_innings_over'] else None
-    runs_needed = target_runs - state['runs'] + 1 if target_runs else None
+    s = match_state
+    batter1 = s['score']['batter1']
+    batter2 = s['score']['batter2']
+    striker = s['striker']
+    bowler = s['bowlers'].get(s['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
+    over_display = f"{s['balls'] // 6}.{s['balls'] % 6}"
+    crr = round((s['runs'] / ((s['balls'] - s['extras']) / 6)) if s['balls'] - s['extras'] > 0 else 0, 2)
+    match_over = s['balls'] >= s['total_overs'] * 6
+    target_runs = s['team1_score'] if s['first_innings_over'] else None
+    runs_needed = (target_runs - s['runs'] + 1) if target_runs else None
 
-    if state['first_innings_over'] and state['runs'] > target_runs:
+    if s['first_innings_over'] and s['runs'] > target_runs:
         match_over = True
 
     if request.method == 'POST':
-        form = request.form
-        if 'batter1_name' in form:
-            batter1['name'] = form['batter1_name']
-            batter2['name'] = form['batter2_name']
-        elif 'new_batter' in form:
-            state['score'][striker] = {'name': form['new_batter'], 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
-            state['awaiting_new_batter'] = False
-        elif 'new_bowler' in form:
-            new_bowler = form['new_bowler']
-            state['current_bowler'] = new_bowler
-            if new_bowler not in state['bowlers']:
-                state['bowlers'][new_bowler] = {'name': new_bowler, 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0}
-            state['awaiting_new_bowler'] = False
-        elif 'event' in form:
-            event = form['event']
+        f = request.form
+        if 'batter1_name' in f:
+            batter1['name'] = f['batter1_name']
+            batter2['name'] = f['batter2_name']
+        elif 'new_batter' in f:
+            s['score'][striker] = {'name': f['new_batter'], 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+            s['awaiting_new_batter'] = False
+        elif 'new_bowler' in f:
+            s['current_bowler'] = f['new_bowler']
+            if f['new_bowler'] not in s['bowlers']:
+                s['bowlers'][f['new_bowler']] = {'name': f['new_bowler'], 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0}
+            s['awaiting_new_bowler'] = False
+        elif 'event' in f:
+            event = f['event']
             if event.isdigit():
-                runs = int(event)
-                state['runs'] += runs
-                state['balls'] += 1
-                batter = state['score'][striker]
-                batter['runs'] += runs
-                batter['balls'] += 1
-                if runs == 4: batter['fours'] += 1
-                if runs == 6: batter['sixes'] += 1
-                if runs % 2 == 1:
-                    state['striker'] = 'batter2' if striker == 'batter1' else 'batter1'
-                bowler['runs'] += runs
+                r = int(event)
+                s['runs'] += r
+                s['balls'] += 1
+                b = s['score'][striker]
+                b['runs'] += r
+                b['balls'] += 1
+                if r == 4: b['fours'] += 1
+                if r == 6: b['sixes'] += 1
+                if r % 2 == 1:
+                    s['striker'] = 'batter2' if striker == 'batter1' else 'batter1'
+                bowler['runs'] += r
                 bowler['balls'] += 1
-                state['recent_overs'].append(event)
+                s['recent_overs'].append(event)
             elif event == 'W':
-                state['wickets'] += 1
-                state['balls'] += 1
-                state['score'][striker]['balls'] += 1
+                s['wickets'] += 1
+                s['balls'] += 1
+                s['score'][striker]['balls'] += 1
                 bowler['wickets'] += 1
                 bowler['balls'] += 1
-                state['awaiting_new_batter'] = True
-                state['recent_overs'].append('W')
+                s['awaiting_new_batter'] = True
+                s['recent_overs'].append('W')
             elif event in ['WD', 'NB']:
-                state['runs'] += 1
-                state['extras'] += 1
+                s['runs'] += 1
+                s['extras'] += 1
                 bowler['runs'] += 1
                 if event == 'WD': bowler['wd'] += 1
                 if event == 'NB': bowler['nb'] += 1
-                state['recent_overs'].append(event.lower())
+                s['recent_overs'].append(event.lower())
 
             if bowler['balls'] > 0 and bowler['balls'] % 6 == 0:
-                state['awaiting_new_bowler'] = True
-            state['bowlers'][state['current_bowler']] = bowler
+                s['awaiting_new_bowler'] = True
+            s['bowlers'][s['current_bowler']] = bowler
 
-        elif 'end_innings' in form:
-            state['team1_score'] = state['runs']
-            state['first_innings_over'] = True
-            state['batting_team'] = state['team2']
-            state['runs'] = 0
-            state['wickets'] = 0
-            state['balls'] = 0
-            state['extras'] = 0
-            state['recent_overs'] = []
-            state['score'] = {
+        elif 'end_innings' in f:
+            s['team1_score'] = s['runs']
+            s['first_innings_over'] = True
+            s['batting_team'] = s['team2']
+            s['runs'] = s['wickets'] = s['balls'] = s['extras'] = 0
+            s['recent_overs'] = []
+            s['score'] = {
                 'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
                 'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
             }
-            state['bowlers'] = {}
-            state['current_bowler'] = ''
-            state['striker'] = 'batter1'
-            state['awaiting_new_batter'] = False
-            state['awaiting_new_bowler'] = True
+            s['bowlers'] = {}
+            s['current_bowler'] = ''
+            s['striker'] = 'batter1'
+            s['awaiting_new_batter'] = False
+            s['awaiting_new_bowler'] = True
 
         return redirect(url_for('scoreboard'))
 
-    result = ''
-    if state['first_innings_over'] and match_over:
-        team2_score = state['runs']
-        team1_score = state['team1_score']
-        if team2_score > team1_score:
-            result = f"{state['team2']} won by {10 - state['wickets']} wickets"
-        elif team2_score < team1_score:
-            result = f"{state['team1']} won by {team1_score - team2_score} runs"
+    result = ""
+    if s['first_innings_over'] and match_over:
+        if s['runs'] > s['team1_score']:
+            result = f"{s['team2']} won by {10 - s['wickets']} wickets"
+        elif s['runs'] < s['team1_score']:
+            result = f"{s['team1']} won by {s['team1_score'] - s['runs']} runs"
         else:
             result = "Match Tied!"
 
-    return render_template('scoreboard.html', **state,
+    return render_template("scoreboard.html",
         batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
-        over_display=over_display, crr=crr, match_over=match_over,
-        target_runs=target_runs, runs_needed=runs_needed,
-        show_result=bool(result), result=result,
+        runs=s['runs'], wickets=s['wickets'], balls=s['balls'], extras=s['extras'],
+        over_display=over_display, crr=crr, recent_overs=s['recent_overs'][-6:],
+        match_over=match_over, show_result=bool(result), result=result,
         show_batter_name_form=not batter1['name'] or not batter2['name'],
-        show_bowler_name_form=state['awaiting_new_bowler'],
-        show_run_buttons=not state['awaiting_new_bowler'] and not state['awaiting_new_batter'],
-        show_end_innings=not state['first_innings_over'] and match_over
+        show_bowler_name_form=s['awaiting_new_bowler'],
+        show_run_buttons=not s['awaiting_new_bowler'] and not s['awaiting_new_batter'],
+        show_end_innings=not s['first_innings_over'] and match_over,
+        awaiting_new_batter=s['awaiting_new_batter'],
+        target_runs=target_runs, runs_needed=runs_needed,
+        batting_team=s['batting_team'],
+        team1=s['team1'], team2=s['team2']
     )
 
-@app.route('/viewer')
+@app.route("/viewer")
 def viewer():
-    state = match_state
-    batter1 = state['score']['batter1']
-    batter2 = state['score']['batter2']
-    striker = state['striker']
-    bowler = state['bowlers'].get(state['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
-    over_display = f"{state['balls'] // 6}.{state['balls'] % 6}"
-    crr = round((state['runs'] / ((state['balls'] - state['extras']) / 6)) if state['balls'] - state['extras'] > 0 else 0, 2)
-    match_over = state['balls'] >= state['total_overs'] * 6
-    target_runs = state['team1_score'] if state['first_innings_over'] else None
-    runs_needed = target_runs - state['runs'] + 1 if target_runs else None
-
-    result = ''
-    if state['first_innings_over'] and match_over:
-        if state['runs'] > state['team1_score']:
-            result = f"{state['team2']} won by {10 - state['wickets']} wickets"
-        elif state['runs'] < state['team1_score']:
-            result = f"{state['team1']} won by {state['team1_score'] - state['runs']} runs"
+    s = match_state
+    batter1 = s['score']['batter1']
+    batter2 = s['score']['batter2']
+    striker = s['striker']
+    bowler = s['bowlers'].get(s['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
+    over_display = f"{s['balls'] // 6}.{s['balls'] % 6}"
+    crr = round((s['runs'] / ((s['balls'] - s['extras']) / 6)) if s['balls'] - s['extras'] > 0 else 0, 2)
+    match_over = s['balls'] >= s['total_overs'] * 6
+    result = ""
+    if s['first_innings_over'] and match_over:
+        if s['runs'] > s['team1_score']:
+            result = f"{s['team2']} won by {10 - s['wickets']} wickets"
+        elif s['runs'] < s['team1_score']:
+            result = f"{s['team1']} won by {s['team1_score'] - s['runs']} runs"
         else:
             result = "Match Tied!"
 
-    return render_template("viewer.html", **state,
+    return render_template("viewer.html",
         batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
-        over_display=over_display, crr=crr, match_over=match_over,
-        show_result=bool(result), result=result,
-        target_runs=target_runs, runs_needed=runs_needed
+        runs=s['runs'], wickets=s['wickets'], balls=s['balls'], extras=s['extras'],
+        over_display=over_display, crr=crr, recent_overs=s['recent_overs'][-6:],
+        match_over=match_over, show_result=bool(result), result=result,
+        target_runs=s['team1_score'] if s['first_innings_over'] else None,
+        runs_needed=(s['team1_score'] - s['runs'] + 1) if s['first_innings_over'] else None,
+        team1=s['team1'], team2=s['team2'], batting_team=s['batting_team'],
+        match_state=s
     )
 
 if __name__ == '__main__':
