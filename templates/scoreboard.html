@@ -117,6 +117,11 @@
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
 </div>
+<div>
+  <h3>Scan to View Live Scoreboard</h3>
+  <img src="{{ url_for('static', filename='qr.png') }}" alt="QR Code to View Scoreboard" width="200">
+</div>
+
 
 
 </body>

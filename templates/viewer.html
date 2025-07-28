@@ -59,6 +59,12 @@
       <td>{{ '%.2f' % ((bowler.runs / (bowler.balls / 6)) if bowler.balls > 0 else 0) }}</td>
     </tr>
   </table>
+  <script>
+  setInterval(() => {
+    location.reload(); // refresh every 5 seconds
+  }, 5000);
+</script>
+
 
   {% if match_over and show_result %}
   <div class="sub-header">Match Over!</div>
@@ -69,6 +75,7 @@
 
   <div class="extras">Extras: {{ extras }}</div>
   <div class="recent-overs">Recent: {{ recent_overs | join(' ') }}</div>
+
 </div>
 </body>
 </html>

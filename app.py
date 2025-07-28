@@ -1,4 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session
+import qrcode
+
+@app.before_first_request
+def generate_qr():
+    
+    public_url = "https://<your-app-name>.onrender.com/viewer"
+
+    img = qrcode.make(public_url)
+    img.save("static/qr.png")  
 
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
@@ -63,7 +72,7 @@ def scoreboard():
     show_bowler_name_form = session.get('awaiting_new_bowler', False) and not match_over
     show_run_buttons = not match_over and not session.get('awaiting_new_bowler') and not session.get('awaiting_new_batter')
 
-    # Set batters
+    
     if request.method == 'POST':
         if 'batter1_name' in request.form and 'batter2_name' in request.form:
             score['batter1']['name'] = request.form['batter1_name']
@@ -139,13 +148,13 @@ def scoreboard():
             return redirect(url_for('scoreboard'))
 
         elif 'end_innings' in request.form:
-            # Save team 1 results
+            
             session['team1_score'] = session['runs']
             session['team1_wickets'] = session['wickets']
             session['team1_overs'] = over_display
             session['first_innings_over'] = True
 
-            # Switch teams and reset innings
+
             session['batting_team'] = session['team2']
             session['runs'] = 0
             session['wickets'] = 0
@@ -163,7 +172,7 @@ def scoreboard():
             session['awaiting_new_bowler'] = True
             return redirect(url_for('scoreboard'))
 
-    # Second innings over, declare result
+
     if session.get('first_innings_over') and match_over:
         team1_score = session.get('team1_score', 0)
         team2_score = session['runs']
@@ -195,6 +204,10 @@ runs_needed=runs_needed
                            show_end_innings=not session.get('first_innings_over') and match_over,awaiting_new_batter=session.get('awaiting_new_batter', False),target_runs=target_runs,
 runs_needed=runs_needed
 )
+@app.route("/viewer")
+def viewer():
+    return render_template("viewer.html")
+
 
 if __name__ == '__main__':
     app.run(debug=True)
