@@ -7,7 +7,7 @@
 <body>
 <div class="container">
   <div class="header">
-    {{ team1 }} vs {{ team2 }} - {% if match_state.first_innings_over %}2nd{% else %}1st{% endif %} Inning
+    {{ team1 }} vs {{ team2 }} - {% if first_innings_over %}2nd{% else %}1st{% endif %} Inning
     {% if show_end_innings %}
     <form method="POST" style="display:inline;">
       <button name="end_innings">End Innings</button>
