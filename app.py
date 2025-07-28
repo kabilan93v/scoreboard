@@ -211,59 +211,45 @@ runs_needed=runs_needed
 )
 @app.route("/viewer")
 def viewer():
-    # Handle case when session is not initialized
-    if 'score' not in session:
-        return "Scoreboard is not initialized yet by admin.", 503  # Or show a template with friendly message
-
-    score = session['score']
+    score = session.get('score', {
+        'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
+        'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+    })
+    batter1 = score['batter1']
+    batter2 = score['batter2']
     striker = session.get('striker', 'batter1')
-    batter1 = score.get('batter1', {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0})
-    batter2 = score.get('batter2', {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0})
-    current_bowler = session.get('current_bowler', '')
-    bowler = session.get('bowlers', {}).get(current_bowler, {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
-    total_balls = session.get('balls', 0)
-    completed_overs = total_balls // 6
-    balls_in_current_over = total_balls % 6
+    bowler = session.get('bowlers', {}).get(session.get('current_bowler', ''), {
+        'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0
+    })
+    completed_overs = session.get('balls', 0) // 6
+    balls_in_current_over = session.get('balls', 0) % 6
     over_display = f"{completed_overs}.{balls_in_current_over}"
-    crr = round((session.get('runs', 0) / ((total_balls - session.get('extras', 0)) / 6)) if total_balls - session.get('extras', 0) > 0 else 0, 2)
-
-    target_runs = None
-    runs_needed = None
-    if session.get('first_innings_over'):
-        target_runs = session.get('team1_score', 0)
-        runs_needed = target_runs - session.get('runs', 0) + 1
-
-    match_over = total_balls >= (session.get('total_overs', 0) * 6)
-    show_result = False
+    crr = round((session.get('runs', 0) / ((session.get('balls', 0) - session.get('extras', 0)) / 6)) if session.get('balls', 0) - session.get('extras', 0) > 0 else 0, 2)
+    target_runs = session.get('team1_score') if session.get('first_innings_over') else None
+    runs_needed = target_runs - session.get('runs', 0) + 1 if target_runs is not None else None
     result = ""
-
-    if session.get('first_innings_over') and match_over:
+    if session.get('first_innings_over') and session.get('balls', 0) >= session.get('total_overs', 0) * 6:
         team1_score = session.get('team1_score', 0)
         team2_score = session.get('runs', 0)
         if team2_score > team1_score:
-            result = f"{session.get('team2', '')} won by {10 - session.get('wickets', 0)} wickets"
+            result = f"{session['team2']} won by {10 - session.get('wickets', 0)} wickets"
         elif team2_score < team1_score:
-            result = f"{session.get('team1', '')} won by {team1_score - team2_score} runs"
+            result = f"{session['team1']} won by {team1_score - team2_score} runs"
         else:
             result = "Match Tied!"
-        show_result = True
 
     return render_template("viewer.html",
-        batter1=batter1,
-        batter2=batter2,
-        bowler=bowler,
-        striker=striker,
-        runs=session.get('runs', 0),
-        wickets=session.get('wickets', 0),
-        balls=total_balls,
-        extras=session.get('extras', 0),
-        over_display=over_display,
-        crr=crr,
-        recent_overs=session.get('recent_overs', [])[-6:],
-        match_over=match_over,
-        show_result=show_result,
-        result=result,
-        target_runs=target_runs,
-        runs_needed=runs_needed
-    )
-
+                           batter1=batter1, batter2=batter2, bowler=bowler,
+                           striker=striker, runs=session.get('runs', 0),
+                           wickets=session.get('wickets', 0),
+                           balls=session.get('balls', 0),
+                           extras=session.get('extras', 0),
+                           over_display=over_display,
+                           crr=crr,
+                           recent_overs=session.get('recent_overs', [])[-6:],
+                           match_over=session.get('balls', 0) >= session.get('total_overs', 0) * 6,
+                           show_result=True if result else False,
+                           result=result,
+                           target_runs=target_runs,
+                           runs_needed=runs_needed,
+                           session=session)
