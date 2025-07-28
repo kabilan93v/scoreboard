@@ -1,16 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import qrcode
 
-@app.before_first_request
-def generate_qr():
-    
-    public_url = "https://<your-app-name>.onrender.com/viewer"
 
-    img = qrcode.make(public_url)
-    img.save("static/qr.png")  
 
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
+@app.before_first_request
+def generate_qr():
+    
+    public_url = "https://scoreboard-wxtx.onrender.com/viewer"
+
+    img = qrcode.make(public_url)
+    img.save("static/qr.png")  
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -209,5 +210,3 @@ def viewer():
     return render_template("viewer.html")
 
 
-if __name__ == '__main__':
-    app.run(debug=True)

@@ -3,6 +3,7 @@
 <head>
   <title>Live Viewer</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+   <meta http-equiv="refresh" content="10">
 </head>
 <body>
 <div class="container">
@@ -59,11 +60,6 @@
       <td>{{ '%.2f' % ((bowler.runs / (bowler.balls / 6)) if bowler.balls > 0 else 0) }}</td>
     </tr>
   </table>
-  <script>
-  setInterval(() => {
-    location.reload(); 
-  }, 5000);
-</script>
 
 
   {% if match_over and show_result %}
