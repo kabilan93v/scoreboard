@@ -8,14 +8,14 @@
 <body>
 <div class="container">
   <div class="header">
-    {{ session['team1'] }} vs {{ session['team2'] }} -
-    {% if session.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+    {{ team1 }} vs {{ team2 }} -
+    {% if match_state.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
   </div>
 
   <div class="sub-header">Live Gully Cricket Scoreboard</div>
 
   <div class="score-line">
-    <span><strong>{{ session['batting_team'] }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
+    <span><strong>{{ batting_team }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
     <span><strong>CRR:</strong> {{ crr }}</span>
   </div>
 

@@ -8,7 +8,7 @@
 <div class="container">
   <div class="header">
     {{ session['team1'] }} vs {{ session['team2'] }} -
-    {% if session.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
+    {% if match_state.get('first_innings_over') %}2nd{% else %}1st{% endif %} Inning
     {% if show_end_innings %}
     <form method="POST" style="display:inline;">
       <button name="end_innings">End Innings</button>
@@ -21,7 +21,7 @@
   <div class="sub-header">Welcome to Gully Cricket Score Board</div>
 
   <div class="score-line">
-    <span><strong>{{ session['batting_team'] }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
+    <span><strong>{{ batting_team }}:</strong> {{ runs }}/{{ wickets }} ({{ over_display }})</span>
     <span><strong>CRR:</strong> {{ crr }}</span>
   </div>
   {% if target_runs %}

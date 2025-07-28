@@ -1,255 +1,196 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for
 import qrcode
 import os
 
 app = Flask(__name__)
 app.secret_key = 'cricket-score-key'
 
+# Global match state
+match_state = {
+    'team1': '', 'team2': '', 'total_overs': 0,
+    'batting_team': '', 'runs': 0, 'wickets': 0, 'balls': 0, 'extras': 0,
+    'recent_overs': [],
+    'score': {
+        'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
+        'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+    },
+    'bowlers': {}, 'current_bowler': '', 'striker': 'batter1',
+    'awaiting_new_batter': False, 'awaiting_new_bowler': True,
+    'first_innings_over': False, 'team1_score': 0
+}
 
+# Generate QR code
 def generate_qr():
     public_url = "https://scoreboard-wxtx.onrender.com/viewer"
-    output_path = os.path.join('static', 'qr.png')
-    if not os.path.exists(output_path):
+    qr_path = os.path.join('static', 'qr.png')
+    if not os.path.exists(qr_path):
         img = qrcode.make(public_url)
-        img.save(output_path)
-
+        img.save(qr_path)
 
 generate_qr()
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        session['team1'] = request.form['team1']
-        session['team2'] = request.form['team2']
-        session['total_overs'] = int(request.form['total_overs'])
-
-        session['batting_team'] = session['team1']
-        session['runs'] = 0
-        session['wickets'] = 0
-        session['balls'] = 0
-        session['extras'] = 0
-        session['recent_overs'] = []
-        session['score'] = {
-            'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
-            'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
-        }
-        session['bowlers'] = {}
-        session['current_bowler'] = ''
-        session['striker'] = 'batter1'
-        session['awaiting_new_batter'] = False
-        session['awaiting_new_bowler'] = True
-        session['first_innings_over'] = False
-        session['team1_score'] = 0
+        match_state.update({
+            'team1': request.form['team1'],
+            'team2': request.form['team2'],
+            'total_overs': int(request.form['total_overs']),
+            'batting_team': request.form['team1'],
+            'runs': 0, 'wickets': 0, 'balls': 0, 'extras': 0,
+            'recent_overs': [],
+            'score': {
+                'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
+                'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+            },
+            'bowlers': {}, 'current_bowler': '', 'striker': 'batter1',
+            'awaiting_new_batter': False, 'awaiting_new_bowler': True,
+            'first_innings_over': False, 'team1_score': 0
+        })
         return redirect(url_for('scoreboard'))
     return render_template('index.html')
 
 @app.route('/scoreboard', methods=['GET', 'POST'])
 def scoreboard():
-    score = session['score']
-    striker = session['striker']
-    batter1 = score['batter1']
-    batter2 = score['batter2']
-    current_bowler = session.get('current_bowler', '')
-    bowler = session['bowlers'].get(current_bowler, {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
-    total_overs = session.get('total_overs', 0)
-    max_balls = total_overs * 6
-    total_balls = session['balls']
-    completed_overs = total_balls // 6
-    balls_in_current_over = total_balls % 6
-    over_display = f"{completed_overs}.{balls_in_current_over}"
-    crr = round((session['runs'] / ((session['balls'] - session['extras']) / 6)) if session['balls'] - session['extras'] > 0 else 0, 2)
-    target_runs = None
-    runs_needed = None
-    if session.get('first_innings_over'):
-        target_runs = session.get('team1_score', 0)
-        runs_needed = target_runs - session['runs'] + 1
+    state = match_state
+    batter1 = state['score']['batter1']
+    batter2 = state['score']['batter2']
+    striker = state['striker']
+    bowler = state['bowlers'].get(state['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
+    max_balls = state['total_overs'] * 6
+    over_display = f"{state['balls'] // 6}.{state['balls'] % 6}"
+    crr = round((state['runs'] / ((state['balls'] - state['extras']) / 6)) if state['balls'] - state['extras'] > 0 else 0, 2)
+    match_over = state['balls'] >= max_balls
+    target_runs = state['team1_score'] if state['first_innings_over'] else None
+    runs_needed = target_runs - state['runs'] + 1 if target_runs else None
 
-    match_over = session['balls'] >= max_balls
-    match_over = session['balls'] >= max_balls
-    if session.get('first_innings_over'):
-        team1_score = session.get('team1_score', 0)
-        if session['runs'] > team1_score:
-            match_over = True
+    if state['first_innings_over'] and state['runs'] > target_runs:
+        match_over = True
 
-
-    show_batter_name_form = (not batter1['name'] or not batter2['name']) and session['balls'] == 0
-    show_bowler_name_form = session.get('awaiting_new_bowler', False) and not match_over
-    show_run_buttons = not match_over and not session.get('awaiting_new_bowler') and not session.get('awaiting_new_batter')
-
-    
+    # POST request handling
     if request.method == 'POST':
-        if 'batter1_name' in request.form and 'batter2_name' in request.form:
-            score['batter1']['name'] = request.form['batter1_name']
-            score['batter2']['name'] = request.form['batter2_name']
-            session.modified = True
-            return redirect(url_for('scoreboard'))
-
-        elif 'new_batter' in request.form:
-            new_name = request.form.get('new_batter')
-            if new_name:
-                out_batter = striker
-                score[out_batter] = {'name': new_name, 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
-                session['awaiting_new_batter'] = False
-                session.modified = True
-                return redirect(url_for('scoreboard'))
-
-        elif 'new_bowler' in request.form:
-            new_bowler = request.form.get('new_bowler')
-            if new_bowler:
-                session['current_bowler'] = new_bowler
-                if new_bowler not in session['bowlers']:
-                    session['bowlers'][new_bowler] = {'name': new_bowler, 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0}
-                session['awaiting_new_bowler'] = False
-                session.modified = True
-                return redirect(url_for('scoreboard'))
-
-        elif 'event' in request.form and show_run_buttons:
-            event = request.form['event']
+        form = request.form
+        if 'batter1_name' in form:
+            batter1['name'] = form['batter1_name']
+            batter2['name'] = form['batter2_name']
+        elif 'new_batter' in form:
+            state['score'][striker] = {'name': form['new_batter'], 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+            state['awaiting_new_batter'] = False
+        elif 'new_bowler' in form:
+            new_bowler = form['new_bowler']
+            state['current_bowler'] = new_bowler
+            if new_bowler not in state['bowlers']:
+                state['bowlers'][new_bowler] = {'name': new_bowler, 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0}
+            state['awaiting_new_bowler'] = False
+        elif 'event' in form:
+            event = form['event']
             if event.isdigit():
                 runs = int(event)
-                session['runs'] += runs
-                session['balls'] += 1
-                score[striker]['runs'] += runs
-                score[striker]['balls'] += 1
-                if runs == 4:
-                    score[striker]['fours'] += 1
-                elif runs == 6:
-                    score[striker]['sixes'] += 1
+                state['runs'] += runs
+                state['balls'] += 1
+                batter = state['score'][striker]
+                batter['runs'] += runs
+                batter['balls'] += 1
+                if runs == 4: batter['fours'] += 1
+                if runs == 6: batter['sixes'] += 1
                 if runs % 2 == 1:
-                    session['striker'] = 'batter2' if striker == 'batter1' else 'batter1'
+                    state['striker'] = 'batter2' if striker == 'batter1' else 'batter1'
                 bowler['runs'] += runs
                 bowler['balls'] += 1
-                session['recent_overs'].append(event)
-
+                state['recent_overs'].append(event)
             elif event == 'W':
-                session['wickets'] += 1
-                session['balls'] += 1
-                score[striker]['balls'] += 1
+                state['wickets'] += 1
+                state['balls'] += 1
+                state['score'][striker]['balls'] += 1
                 bowler['wickets'] += 1
                 bowler['balls'] += 1
-                session['awaiting_new_batter'] = True
-                session['recent_overs'].append('W')
-
-            elif event == 'WD':
-                session['runs'] += 1
-                session['extras'] += 1
+                state['awaiting_new_batter'] = True
+                state['recent_overs'].append('W')
+            elif event in ['WD', 'NB']:
+                state['runs'] += 1
+                state['extras'] += 1
                 bowler['runs'] += 1
-                bowler['wd'] += 1
-                session['recent_overs'].append('wd')
-
-            elif event == 'NB':
-                session['runs'] += 1
-                session['extras'] += 1
-                bowler['runs'] += 1
-                bowler['nb'] += 1
-                session['recent_overs'].append('nb')
+                if event == 'WD': bowler['wd'] += 1
+                if event == 'NB': bowler['nb'] += 1
+                state['recent_overs'].append(event.lower())
 
             if bowler['balls'] > 0 and bowler['balls'] % 6 == 0:
-                session['awaiting_new_bowler'] = True
+                state['awaiting_new_bowler'] = True
+            state['bowlers'][state['current_bowler']] = bowler
 
-            session['bowlers'][current_bowler] = bowler
-            session.modified = True
-            return redirect(url_for('scoreboard'))
-
-        elif 'end_innings' in request.form:
-            
-            session['team1_score'] = session['runs']
-            session['team1_wickets'] = session['wickets']
-            session['team1_overs'] = over_display
-            session['first_innings_over'] = True
-
-
-            session['batting_team'] = session['team2']
-            session['runs'] = 0
-            session['wickets'] = 0
-            session['balls'] = 0
-            session['extras'] = 0
-            session['recent_overs'] = []
-            session['score'] = {
+        elif 'end_innings' in form:
+            state['team1_score'] = state['runs']
+            state['first_innings_over'] = True
+            state['batting_team'] = state['team2']
+            state['runs'] = 0
+            state['wickets'] = 0
+            state['balls'] = 0
+            state['extras'] = 0
+            state['recent_overs'] = []
+            state['score'] = {
                 'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
-                'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
+                'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
             }
-            session['bowlers'] = {}
-            session['current_bowler'] = ''
-            session['striker'] = 'batter1'
-            session['awaiting_new_batter'] = False
-            session['awaiting_new_bowler'] = True
-            return redirect(url_for('scoreboard'))
+            state['bowlers'] = {}
+            state['current_bowler'] = ''
+            state['striker'] = 'batter1'
+            state['awaiting_new_batter'] = False
+            state['awaiting_new_bowler'] = True
 
+        return redirect(url_for('scoreboard'))
 
-    if session.get('first_innings_over') and match_over:
-        team1_score = session.get('team1_score', 0)
-        team2_score = session['runs']
+    # Show result if match is over
+    result = ''
+    if state['first_innings_over'] and match_over:
+        team2_score = state['runs']
+        team1_score = state['team1_score']
         if team2_score > team1_score:
-            result = f"{session['team2']} won by {10 - session['wickets']} wickets"
+            result = f"{state['team2']} won by {10 - state['wickets']} wickets"
         elif team2_score < team1_score:
-            result = f"{session['team1']} won by {team1_score - team2_score} runs"
+            result = f"{state['team1']} won by {team1_score - team2_score} runs"
         else:
             result = "Match Tied!"
-        return render_template('scoreboard.html',
-                               batter1=batter1, batter2=batter2, bowler=bowler,
-                               striker=striker, runs=session['runs'], match_over=True,
-                               wickets=session['wickets'], balls=session['balls'],
-                               extras=session['extras'], over_display=over_display,
-                               crr=crr, recent_overs=session['recent_overs'][-6:],
-                               show_result=True, result=result,awaiting_new_batter=session.get('awaiting_new_batter', False),target_runs=target_runs,
-runs_needed=runs_needed
-)
 
     return render_template('scoreboard.html',
-                           batter1=batter1, batter2=batter2, bowler=bowler,
-                           striker=striker, runs=session['runs'], match_over=match_over,
-                           wickets=session['wickets'], balls=session['balls'],
-                           extras=session['extras'], over_display=over_display,
-                           crr=crr, recent_overs=session['recent_overs'][-6:],
-                           show_batter_name_form=show_batter_name_form,
-                           show_bowler_name_form=show_bowler_name_form,
-                           show_run_buttons=show_run_buttons,
-                           show_end_innings=not session.get('first_innings_over') and match_over,awaiting_new_batter=session.get('awaiting_new_batter', False),target_runs=target_runs,
-runs_needed=runs_needed
-)
-@app.route("/viewer")
+        batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
+        runs=state['runs'], wickets=state['wickets'], balls=state['balls'],
+        extras=state['extras'], over_display=over_display, crr=crr,
+        recent_overs=state['recent_overs'][-6:], match_over=match_over,
+        show_result=bool(result), result=result,
+        target_runs=target_runs, runs_needed=runs_needed,
+        show_batter_name_form=not batter1['name'] or not batter2['name'],
+        show_bowler_name_form=state['awaiting_new_bowler'],
+        show_run_buttons=not state['awaiting_new_bowler'] and not state['awaiting_new_batter'],
+        awaiting_new_batter=state['awaiting_new_batter'],
+        show_end_innings=not state['first_innings_over'] and match_over
+    )
+
+@app.route('/viewer')
 def viewer():
-    score = session.get('score', {
-        'batter1': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0},
-        'batter2': {'name': '', 'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
-    })
-    batter1 = score['batter1']
-    batter2 = score['batter2']
-    striker = session.get('striker', 'batter1')
-    bowler = session.get('bowlers', {}).get(session.get('current_bowler', ''), {
-        'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0
-    })
-    completed_overs = session.get('balls', 0) // 6
-    balls_in_current_over = session.get('balls', 0) % 6
-    over_display = f"{completed_overs}.{balls_in_current_over}"
-    crr = round((session.get('runs', 0) / ((session.get('balls', 0) - session.get('extras', 0)) / 6)) if session.get('balls', 0) - session.get('extras', 0) > 0 else 0, 2)
-    target_runs = session.get('team1_score') if session.get('first_innings_over') else None
-    runs_needed = target_runs - session.get('runs', 0) + 1 if target_runs is not None else None
+    state = match_state
+    batter1 = state['score']['batter1']
+    batter2 = state['score']['batter2']
+    striker = state['striker']
+    bowler = state['bowlers'].get(state['current_bowler'], {'name': '', 'balls': 0, 'runs': 0, 'wickets': 0, 'nb': 0, 'wd': 0})
+    over_display = f"{state['balls'] // 6}.{state['balls'] % 6}"
+    crr = round((state['runs'] / ((state['balls'] - state['extras']) / 6)) if state['balls'] - state['extras'] > 0 else 0, 2)
+    match_over = state['balls'] >= state['total_overs'] * 6
     result = ""
-    if session.get('first_innings_over') and session.get('balls', 0) >= session.get('total_overs', 0) * 6:
-        team1_score = session.get('team1_score', 0)
-        team2_score = session.get('runs', 0)
-        if team2_score > team1_score:
-            result = f"{session['team2']} won by {10 - session.get('wickets', 0)} wickets"
-        elif team2_score < team1_score:
-            result = f"{session['team1']} won by {team1_score - team2_score} runs"
+    if state['first_innings_over'] and match_over:
+        if state['runs'] > state['team1_score']:
+            result = f"{state['team2']} won by {10 - state['wickets']} wickets"
+        elif state['runs'] < state['team1_score']:
+            result = f"{state['team1']} won by {state['team1_score'] - state['runs']} runs"
         else:
             result = "Match Tied!"
-
     return render_template("viewer.html",
-                           batter1=batter1, batter2=batter2, bowler=bowler,
-                           striker=striker, runs=session.get('runs', 0),
-                           wickets=session.get('wickets', 0),
-                           balls=session.get('balls', 0),
-                           extras=session.get('extras', 0),
-                           over_display=over_display,
-                           crr=crr,
-                           recent_overs=session.get('recent_overs', [])[-6:],
-                           match_over=session.get('balls', 0) >= session.get('total_overs', 0) * 6,
-                           show_result=True if result else False,
-                           result=result,
-                           target_runs=target_runs,
-                           runs_needed=runs_needed,
-                           session=session)
+        batter1=batter1, batter2=batter2, bowler=bowler, striker=striker,
+        runs=state['runs'], wickets=state['wickets'], balls=state['balls'],
+        extras=state['extras'], over_display=over_display, crr=crr,
+        recent_overs=state['recent_overs'][-6:], match_over=match_over,
+        show_result=bool(result), result=result,
+        target_runs=state['team1_score'] if state['first_innings_over'] else None,
+        runs_needed=(state['team1_score'] - state['runs'] + 1) if state['first_innings_over'] else None,
+        session=state
+    )
+
